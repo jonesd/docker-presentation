@@ -1,28 +1,21 @@
-# Docker and Containers
+# Docker
+
+### David Jones, October 2015
 
 ---
 
-## Why/Motivation
-+ Expectations for deployed systems have changed - trickle down from large websites
-+ The move from Java centric server apps to polyglot distributed systems + pressure to deliver more frequently (finally) + API/Messaging centric architectures +  + DevOps = Complex systems + opportunity for influencing delivered environment
-+ Screenshots (perhaps demo)
- + With only docker installed download/startup multiple container in one command
- + Deploy same thing on external machines
- + See centralized logging
-
----
-
-## Containers History
-+ Data centre - better utilization
-+ Kernel changes - security
-+ Heroku/PaaS
-+ Docker
+## Content
++ Docker Introduction
++ Example
++ Orchestration
 
 ---
 
 ## Docker: the product
 + Docker: Build, Ship, Run
 + Docker is an open platform for building, shipping and running distributed applications. It gives programmers, development teams and operations engineers the common toolbox they need to take advantage of the distributed and networked nature of modern applications.
+
+&nbsp;
 
 ## Docker: the open-source project
 + Docker is an open-source project that automates the deployment of applications inside software containers, by providing an additional layer of abstraction and automation of operating-system-level virtualization on Linux, Mac OS and Windows. (wikipedia)
@@ -33,7 +26,7 @@
 + Container is a wrapper around an OS process
 + Process has its own file system, networking, and isolated process tree
 + Isolation is based on features of the Linux kernel
-+You can think of the container as a kind of sandboxed process
++ You can think of the container as a kind of sandboxed process
 
 ---
 
@@ -46,7 +39,7 @@
 
 ---
 
-## Docker Example
+# Docker Example
 
 ---
 ## Create a static website
@@ -244,12 +237,6 @@ EXPOSE 3000
 ```
 
 ```
-user@helloreceipts-vm:~/projects/coe/docker/rest$ cat Dockerfile
-FROM node:4.1-onbuild
-EXPOSE 3000
-```
-
-```
 user@helloreceipts-vm:~/projects/coe/docker/rest$ cat server.js
 var express = require('express');
 var app = express();
@@ -293,6 +280,27 @@ npm info start my-rest@
 
 Example app listening at http://:::3000
 ```
+---
+
+# Questions?
+---
+
+## Why/Motivation
++ Expectations for deployed systems have changed - trickle down from large websites
++ The move from Java centric server apps to polyglot distributed systems + pressure to deliver more frequently (finally) + API/Messaging centric architectures +  + DevOps = Complex systems + opportunity for influencing delivered environment
++ Screenshots (perhaps demo)
+ + With only docker installed download/startup multiple container in one command
+ + Deploy same thing on external machines
+ + See centralized logging
+
+---
+
+## Containers History
++ Data centre - better utilization
++ Kernel changes - security
++ Heroku/PaaS
++ Docker
+
 ---
 
 ## Continuous delivery of images
