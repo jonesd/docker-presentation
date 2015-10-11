@@ -149,6 +149,7 @@ $ curl localhost
 ---
 
 ## Container file system is Ephemeral
+
 + By default the file system of a docker container is initialized with the contents of the image
  + except for a few system host files
 + File system within the container is writeable
@@ -257,15 +258,13 @@ var server = app.listen(3000, function () {
 
 ## Building the my-rest image
 + Create Dockerfile that extends the public node image from docker hub
-
 ```
 user@helloreceipts-vm:~/projects/coe/docker/rest$ cat Dockerfile
 FROM node:4.1-onbuild
 EXPOSE 3000
 ```
 
-+ We can now build the __my-rest__ image locally
-
++ We can now build the my-rest image locally
 ```
 $ docker build -t my-rest .
 Sending build context to Docker daemon 4.096 kB
@@ -302,7 +301,6 @@ Example app listening at http://:::3000
 ```
 
 + The my-rest container is now accessible from the host through port 3000
-
 ```
 TODO curl 3000
 ```
@@ -375,7 +373,7 @@ TODO
 + Provide shared services across all containers running on the host using docker API
  + Collect logs and ship them to a central logging repository
  + Standard monitoring for all containers
-+ ICT has found nginx-proxy and TODO a useful starting point
++ ICT has found jwilder/nginx-proxy and digitalwonderland/logstash-forwarder images useful starting points
 
 ---
 
@@ -383,7 +381,7 @@ TODO
 
 + Extension of this is the idea of Platform as a Service PaaS
 + Development team focus on applications with a standard set of tooling and hosting built around it
-+ Example PaaS implementations: Heroku, AmazonAWS, TODO, and others
++ Example PaaS implementations: Heroku, Amazon AWS, CloudFoundry, and others
 + 12 Factor App provides guidance on engineering applications for this space
 
 ---
@@ -394,9 +392,9 @@ TODO
 + Compatible with most Linux implementations
  + I've found Ubuntu the best experience, we have also had success with CentOS after a few issues
 + Windows and MacOS hosts are supported by starting up a compatible Linux host within a Virtual Machine using Docker Machine
- + TODO native Windows support?
+ + Microsoft is working on Windows Server Containers support for Windows Server 2016
 + There are also a number of cloud based hosting providers now for Docker containers
- + AmazonAWS TODO, Microsoft TODO, Google TODO etc
+ + Amazon EC2 Container Service, Microsoft Azure, Google Container Engine, etc
  + Cloud providers currently provide the orchestration for multiple containers rather than use docker-compose
 
 ---
@@ -404,7 +402,7 @@ TODO
 
 + There are some benefits for using Docker on the developer machine
 + Versioned configuration that specifies the runtime environment
- + Reduces cost to setup and preserve identical runtime environemts across all the developer machines
+ + Reduces cost to setup and preserve identical runtime environments across all the developer machines
  + Developer machines tend to be closer to production environment and the differences are clearly in the configuration
 + Docker isn't a natural fit to host an IDE such as Eclipse
  + It is possible to run the IDE within a docker container as if it were a VM but it's a push
@@ -419,10 +417,10 @@ TODO
 
 + Pros
  + Wrapping deployment artefacts with the entire runtime environment and configuration
- + Runtime configuration under version contral rather than adhoc host environments
+ + Runtime configuration under version control rather than ad-hoc host environments
  + Docker image is becoming the standard for individual container images
 + Cons
- + Lots of alternatives for orchestration of docker containers - docker-compose stillh under development
+ + Lots of alternatives for orchestration of docker containers - docker-compose still under development
  + Existing applications need to be updated - mostly around passing in URL to access services in other containers
  + Conceptual complexity of introducing a new container layer
  + Docker is still young software and releases can break existing functionality
@@ -458,7 +456,3 @@ TODO
 + Kernel changes - security
 + Heroku/PaaS
 + Docker
-
----
-
-## Continuous delivery of images
