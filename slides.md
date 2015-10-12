@@ -43,189 +43,224 @@
 
 ---
 
-# Docker Example
+## Docker Example
+
++ Build and run a simple Restful NodeJS application using mongodb
+
++ Given a clean Linux machine how could we implement a node application?
+ + NodeJS + MongoDB + application node code
++ We could install nodejs and mongodb in the usual fashion (apt-get install node...)
++ Instead we will use docker
 
 ---
-## Create a static website
-+ Given a clean Linux machine how could we implement a static website?
-+ Apache httpd + website files
-+ We could install apache httpd in the usual fashion (apt-get install httpd...)
-+ Instead use docker
-+ Download the 'httpd' version 2.4 docker image from docker hub and run as a container named 'web'
+## Create a node based restful application
++ The docker hub website contains hundreds of official repositories and 100,000+ user contributed repositories
++ Download the 'node' version 4.1 docker image from docker hub and run as a container named 'rest'
 
 ```
-$ docker run -d --name web httpd:2.4
-Unable to find image 'httpd:2.4' locally
-2.4: Pulling from library/httpd
-e0f29a2edd11: Pull complete
-042b0607e62f: Pull complete
+$ docker run -it --rm --name rest \
+    node:4.1
+
+Unable to find image 'node:4.1' locally
+4.1: Pulling from library/node
+116f2940b0c5: Pull complete
+...
+Status: Downloaded newer image for node:4.1
+```
++ Download succeeded but then the docker container immediately Exited
++ No node code to run!
+
+---
+
+## Create a basic node application
++ Create the standard node application using express js
++ Notice that there are no docker specific changes
+
+```
+var express = require('express');
+var app = express();
+
+app.get('/api/countries', function (req, res) {
+  res.send(['ca', 'us']);
+});
+
+var server = app.listen(80, function () {
+  var host = server.address().address;
+  var port = server.address().port;
+
+  console.log('Example app listening at http://%s:%s', host, port);
+});
+```
+
+---
+
+## Run node application
++ Containers start isolated from the host so we will need to provide access to our code
++ Run with the -v volume argument to map the host filesystem current directory to the container's /usr/src/app directory
++ The -w argument sets the container's working directory to /usr/src/app
+
+---
+
+## Install npm dependencies
++ First we will install the expressjs and its dependencies
+
+```
+$ docker run -it --rm --name rest \
+    -v $PWD:/usr/src/app -w /usr/src/app \
+    node:4.1 \
+    npm install
+
+npm info it worked if it ends with ok
+npm info using npm@2.14.4
+npm info using node@v4.1.2
+...
+express@4.13.3 node_modules/express
+npm info ok
+```
+
++ This will result in a node_modules directory present on the host filesystem as -v volume is bidirectional
+
+---
+
+## Start server
++ To run the application
+
+```
+$ docker run -it --rm --name rest \
+    -v $PWD:/usr/src/myapp -w /usr/src/myapp \
+    node:4.1 \
+    npm start
+
+npm info it worked if it ends with ok
 ....
-Status: Downloaded newer image for httpd:2.4
-252c24a14105cdae81b7175933a899cb073303729b55da81217d1208b46edf18
 
-$ docker ps -a
-CONTAINER ID        IMAGE               COMMAND              CREATED             STATUS              PORTS               NAMES
-252c24a14105        httpd:2.4           "httpd-foreground"   15 seconds ago      Up 14 seconds       80/tcp              web
+> rest@1.0.0 start /usr/src/myapp
+> node server.js
 
-$ curl localhost
-curl: (7) Failed to connect to localhost port 80: Connection refused
+Example app listening at http://:::80
 ```
 
-+ Why did it fail?
++ Is the application responding to HTTP requests?
+
+```
+$ curl localhost/api/countries
+curl: (7) Failed to connect to localhost port 3000: Connection refused
+```
 
 ---
 
-## Open network access to host
+## Providing access to the containers port
 
 + Containers are self-enclosed sandbox by default
 + httpd process within the web container is listening on port 80
 + No access outside of the container to that port
 
 ```
-$ docker run -d --name web -p 80:80 httpd:2.4
-7acf5e7346ad42ef6cb6895a1bda7fe0c2ded6baaae2df8ce22a3f16c108351a
-$ curl localhost
-<html><body><h1>It works!</h1></body></html>
-$ docker ps -a
-CONTAINER ID        IMAGE               COMMAND              CREATED             STATUS              PORTS                NAMES
-7acf5e7346ad        httpd:2.4           "httpd-foreground"   5 minutes ago       Up 5 minutes        0.0.0.0:80->80/tcp   web
+$ docker run -it --rm --name rest \
+    -p 80:80 \
+    -v $PWD:/usr/src/myapp -w /usr/src/myapp \
+    node:4.1 \
+    npm start
+
+Example app listening at http://:::80
+
+$ curl localhost/api/countries
+["ca","us"]
 ```
 
 ---
 
-## What about our own content?
-+ How do we get httpd to show our own content?
-+ Where did the "It works!" page come from?
-+ httpd by default serves content from the /htdocs directory
-+ The Docker Hub page for the httpd image indicates that the image uses the /usr/local/apache2/htdocs
-
-```
-$ ls /usr/local/apache2/htdocs
-ls: cannot access /usr/local/apache2/htdocs: No such file or directory
-```
-
-+ There is no httpd installed on the host. It is within the docker container
-+ How do we see inside the container?
-
-```
-$ docker run -it --rm httpd:2.4 bash
-root@3a9fe458f3f6:/usr/local/apache#  ls /usr/local/apache2/htdocs
-index.html
-root@3a9fe458f3f6:/usr/local/apache2#  cat /usr/local/apache2/htdocs/index.html
-<html><body><h1>It works!</h1></body></html>
-root@3a9fe458f3f6:/usr/local/apache2# exit
-exit
-```
-
-+ The index.html is included with the httpd docker image
+## Building the rest image
++ Currently the rest container is defined by:
+ + node image
+ + javascript and package.json from the host filesystem
+ + docker run command line
++ Building a new image that extends the node image with the javascript and package.json
++ This image could be run on any docker installation
++ Content of an image is defined in the Dockerfile
+ + Limited number of Dockerfile commands
+ + FROM command image to extend another image, typically terminating in a linux OS, which can differ from host OS
+ + RUN allows shell commands, for example OS's package manager such as (apt-get install ...)
+ + CMD set the default command when container is run
 
 ---
 
-## Override the image's index.html
-+ Create our own index.html page on the host file system
-
-```
-$ echo "<html><body>New Website</body></html>" > public-html/index.html
-$ cat index.html
-<html><body>New Website</body></html>
-```
-
-+ Run httpd container but replacing the image's /htdocs directory with the host's public-html directory
-+ Add a volume that links a directory from the host to the container's filesystem
-
-```
-$ docker run -d --name web -p 80:80 -v $PWD/public-html:/usr/local/apache2/htdocs httpd:2.4
-3970ee59b95472926b35f1b2f407f9ca0166a768ede417f1700f61337e0cf3cf
-$ curl localhost
-<html><body>New Website</body></html>
-```
-+ If we change the host's index.html then the served content will be updated too for the running container
-
-```
-$ echo "<html><body>New Website VERSION 2</body></html>" > public-html/index.html
-$ curl localhost
-<html><body>New Website VERSION 2</body></html>
-```
----
-
-## Container file system is Ephemeral
-
-+ By default the file system of a docker container is initialized with the contents of the image
- + except for a few system host files
-+ File system within the container is writeable
-+ Any changes made within the running container will be preserved only until the container removed
-+ Container will be recreated from the image again
-+ All modified data that needs to be persisted should be through a volume to the host file system
-+ Advantage
- + Each container starts with the same file system content
-
----
-
-## Make our own httpd image with our own website files
-+ docker images are a deployable unit, or component
-+ rather than using a host volume for the website content we could create our own httpd image with this content
-+ how do you define the contents of an image?
-
+## Rest image Dockerfile
 ```
 $ vi Dockerfile
-FROM httpd:2.4
+FROM node:4.1.2
 
-COPY ./public-html/ /usr/local/apache2/htdocs/
+RUN mkdir -p /usr/src/app
+WORKDIR /usr/src/app
+
+COPY package.json /usr/src/app/
+RUN npm install
+COPY . /usr/src/app
+
+CMD [ "npm", "start" ]
 ```
-+ We will extend the httpd image and include our html content
-+ Build a new image called __my-site__
++ Notice how some of the docker run command line options we were using are now included in this file
+
+---
+
+## Building the rest image
+
++ Most public images are created automatically from a github repository
++ We can create our own image manually using the __docker build__ command
 
 ```
-$ docker build -t my-site .
-Sending build context to Docker daemon 3.584 kB
-Step 0 : FROM httpd:2.4
- ---> 81c42bcdc4cc
-Step 1 : COPY ./public-html/ /usr/local/apache2/htdocs/
- ---> 120c47d82994
-Successfully built 120c47d82994
+$ docker build -t my-rest .
+
+Sending build context to Docker daemon 4.096 kB
+Step 0 : FROM node:4.1.2
+4.1.2: Pulling from library/node
+843e2bded498: Already exists
+...
+Step 1 : RUN mkdir -p /usr/src/app
+Step 2 : WORKDIR /usr/src/app
+Step 3 : COPY package.json /usr/src/app/
+Step 4 : RUN npm install
+Step 5 : COPY . /usr/src/app
+Step 6 : CMD npm start
+Successfully built 8baaa541b2b5
 ```
 
-+ We can use it in the same way as with the httpd image
++ We can see the new image in the local list of images
 
 ```
-$ docker run -d --name web -p 80:80 my-site
-f3d80c02031ead6741fc43ee0ae52c9368f6958937715e50071387d942f5cde8
+$ docker images
 
-$ curl localhost
-<html><body>New Website VERSION 2</body></html>
-
-$ docker ps -a
-CONTAINER ID        IMAGE               COMMAND              CREATED             STATUS              PORTS                NAMES
-f3d80c02031e        my-site             "httpd-foreground"   3 minutes ago       Up 3 minutes        0.0.0.0:80->80/tcp   web
+REPOSITORY                 TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+my-rest                    latest              8baaa541b2b5        5 minutes ago       644.2 MB
+node                       4.1                 a3157e9edc18        6 days ago          641.2 MB
+node                       4.1.2               a3157e9edc18        6 days ago          641.2 MB
 ```
 
 ---
 
-## How was the httpd image defined?
-+ You can access the Dockerfile from docker hub
-+ Most public images on the hub are built automatically from github repositories
+## Run the my-rest image
 
-+ docker-library/httpd/2.4/Dockerfile
++ Running the new my-rest image is more direct
 
 ```
-FROM debian:jessie
+$ docker run -it --rm --name rest \
+    -p 80:80 \
+    my-rest
 
-ENV HTTPD_PREFIX /usr/local/apache2
-ENV PATH $PATH:$HTTPD_PREFIX/bin
-RUN mkdir -p "$HTTPD_PREFIX" \
-	&& chown www-data:www-data "$HTTPD_PREFIX"
-WORKDIR $HTTPD_PREFIX
+Example app listening at http://:::80
 
-# install httpd runtime dependencies
-RUN apt-get update \
-	&& apt-get install -y --no-install-recommends \
-		libapr1 \
-		libaprutil1 \
-		libpcre++0 \
-		libssl1.0.0 \
-	&& rm -r /var/lib/apt/lists/*
-...
+$ curl localhost/api/countries
+["ca","us"]
 ```
+
+---
+
+## Storing data in MongoDB
+
++ If we want
+
+---
+
 
 ---
 
@@ -279,6 +314,21 @@ Trigger 1, RUN npm install
 Step 0 : RUN npm install
  ---> Running in ff83f6002ab0
 ```
+---
+
+## Container file system is Ephemeral
+
++ By default the file system of a docker container is initialized with the contents of the image
+ + except for a few system host files
++ File system within the container is writeable
++ Any changes made within the running container will be preserved only until the container removed
++ Container will be recreated from the image again
++ All modified data that needs to be persisted should be through a volume to the host file system
++ Advantage
+ + Each container starts with the same file system content
+
+---
+
 
 ---
 
