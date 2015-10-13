@@ -476,13 +476,11 @@ rest_1 | Example app listening at http://:::80
 + So far we have decomposed our runtime environment into multiple containers, then reassembled using orchestration
 + Why not just stick to a single virtual machine?
 + Container isolation and the docker API opens the door for more options on the host
-+ Multiple applications on the same host to improve hardware utilization
- + Different applications or different versions of the same application
- + Front the machine with an HTTP proxy to direct network traffic to appropriate containers
++ Multiple applicationszversions on the same host to improve hardware utilization
+ + Front the machine with an HTTP proxy to direct network traffic to appropriate containers (jwilder/nginx-proxy)
 + Provide shared services across all containers running on the host using docker API
- + Collect logs and ship them to a central logging repository
+ + Collect logs and ship them to a central logging repository (digitalwonderland/logstash-forwarder)
  + Standard monitoring for all containers
-+ ICT has found jwilder/nginx-proxy and digitalwonderland/logstash-forwarder images useful starting points
 
 ---
 
@@ -509,17 +507,35 @@ rest_1 | Example app listening at http://:::80
 ---
 ## Docker on the developer machine
 
-+ There are some benefits for using Docker on the developer machine
-+ Versioned configuration that specifies the runtime environment
- + Reduces cost to setup and preserve identical runtime environments across all the developer machines
- + Developer machines tend to be closer to production environment and the differences are clearly in the configuration
-+ Docker isn't a natural fit to host an IDE such as Eclipse
- + It is possible to run the IDE within a docker container as if it were a VM but it's a push
-+ Volume sharing between host filesystem and container provides a way for this to works
- + Debugging is a challenge unless there is a network link into the container or debugging happens in-container
- + I have found volume sharing works well enough with NodeJS applications
-+ Eclipse Mars provides simple support for stopping/starting containers and may provide better support in the future
-+ Docker containers can be used well to handle third party services, such as databases or HTTPD fronts where volume sharing is all that is needed
++ Docker helps on the developer machine but is not a complete solution
++ Versioned configuration of runtime environment is a win
+ + Reduces cost to setup, keeps dev machines closer to production, and indicates differences
++ Docker containers can be used to handle third party services, such as databases or HTTPD fronts where volume sharing is sufficient
++ Docker isn't a natural fit to host an IDE such as Eclipse.
+ + Volume sharing between host filesystem and container provides a partial solution
+ + Debugging is a barrier unless remote debugging is supported
+ + Eclipse Mars provides basic container management and may be enhanced in the future
+
+---
+
+## Docker/Containers Pros and Cons
+
++ Pros
+ + Wrapping deployment artefacts with the entire runtime environment and configuration
+ + Runtime configuration under version control rather than ad-hoc host environments
+ + Docker image is becoming the standard for individual container images
+
+---
+
+## Docker/Containers Pros and Cons
+
++ Cons
+ + Lots of alternatives for orchestration of docker containers - docker-compose still under development
+ + Existing applications need to be updated - mostly around passing in URL to access services in other containers
+ + Conceptual complexity of introducing a new container layer
+ + Docker is still young software and releases can break existing functionality
+ + Had more problems using CentOS as the host OS rather than Ubuntu
+
 ---
 
 ## Docker Concepts Summary
@@ -537,26 +553,13 @@ rest_1 | Example app listening at http://:::80
 
 ---
 
-## Docker/Containers Pros and Cons
-
-+ Pros
- + Wrapping deployment artefacts with the entire runtime environment and configuration
- + Runtime configuration under version control rather than ad-hoc host environments
- + Docker image is becoming the standard for individual container images
-+ Cons
- + Lots of alternatives for orchestration of docker containers - docker-compose still under development
- + Existing applications need to be updated - mostly around passing in URL to access services in other containers
- + Conceptual complexity of introducing a new container layer
- + Docker is still young software and releases can break existing functionality
- + Had more problems using CentOS as the host OS rather than Ubuntu
-
----
-
 # Questions?
 
 &nbsp;
 
 + http://docker.com
+---
+
 ---
 
 ## Content
