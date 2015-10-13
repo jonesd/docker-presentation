@@ -4,13 +4,6 @@
 
 ---
 
-## Content
-+ Docker Introduction
-+ Docker Example
-+ Orchestration
-
----
-
 ## Docker: the product
 + Docker: Build, Ship, Run
 + Docker is an open platform for building, shipping and running distributed applications. It gives programmers, development teams and operations engineers the common toolbox they need to take advantage of the distributed and networked nature of modern applications. (docker.com)
@@ -172,7 +165,7 @@ curl: (7) Failed to connect to localhost port 3000: Connection refused
 + nodejs process within the rest container is listening on port 80
 + No access outside of the container to that port
 
-![Design](images/rest.jpg)
+![Design](images/rest-unconnected.jpg)
 
 ---
 
@@ -193,6 +186,15 @@ Example app listening at http://:::80
 $ curl localhost/api/countries
 ["ca","us"]
 ```
+---
+
+## Rest accessible from host
+
+![Complete Application](images/rest.jpg)
+
+---
+
+## Improving the definition of the rest container
 
 ---
 
@@ -271,6 +273,12 @@ Example app listening at http://:::80
 $ curl localhost/api/countries
 ["ca","us"]
 ```
+
+---
+
+## Creating the DB container
+
+![Complete Application](images/db-start.jpg)
 
 ---
 
@@ -363,6 +371,12 @@ journal  local.0  local.ns  mongod.lock  storage.bson
 
 ## Linking the DB and Rest containers
 
+![Complete Application](images/db-unconnected.jpg)
+
+---
+
+## Linking the DB and Rest containers
+
 + We now need to link the DB and Rest containers
 + As we saw before containers are isolated from the host and each other by default
 + Rather than linking the DB with the host, allowing any process access to the mongo service, we will instead link the Rest container to the DB container directly
@@ -374,8 +388,6 @@ $ docker run -it --rm --name rest \
     --link db:db \
     my-rest
 ```
-
-
 
 ---
 
@@ -392,6 +404,15 @@ MongoClient.connect(url, function(err, db) {
 }
 ```
 + Rather than relying directly on the `db` domain name from the --link the full URL can be passed into the container as an environment variable
+---
+
+## Example Functioning
+
++ We now have the rest container accessible
++ The rest container using the db container
+
+![Complete Application](images/overall.jpg)
+
 ---
 
 ## Orchestration
@@ -438,6 +459,7 @@ db:
 
 ```
 $ docker-compose up
+
 Creating rest_db_1...
 Creating rest_rest_1...
 db_1   | MongoDB starting : pid=1 port=27017 dbpath=/data/db 64-bit host=f80942718a9f
@@ -445,6 +467,8 @@ db_1   | waiting for connections on port 27017
 rest_1 | > node server.js
 rest_1 | Example app listening at http://:::80
 ```
+
++ docker-compose now allows us to start/stop/restart/access logs for all the containers as if they were a single unit
 ---
 
 ## Extending the host
@@ -502,13 +526,14 @@ rest_1 | Example app listening at http://:::80
 
 + Docker Images are run to produce runtime Containers
 + Images can be private or downloaded from the public docker hub
++ Images defined by Dockerfile
 + Container runs one process
 + Containers are isolated by default
 + Container network access from host or other containers can be configured
 + Container disk storage is ephemeral and is lost when the container is removed
 + Host file system can be linked to container for permanent storage
 + Application decomposed into many containers
-+ Docker compose can run and link multiple containers
++ Docker compose can run and link multiple containers (docker-compose.yml)
 
 ---
 
@@ -533,6 +558,14 @@ rest_1 | Example app listening at http://:::80
 
 + http://docker.com
 ---
+
+## Content
++ Docker Introduction
++ Docker Example
++ Orchestration
+
+---
+
 
 ## Why/Motivation
 + Expectations for deployed systems have changed - trickle down from large websites
