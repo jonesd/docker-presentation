@@ -1,0 +1,12 @@
+rest:
+  build: .
+  links:
+  - db
+  ports:
+  - "80:80"
+
+db:
+  image: mongo:3
+  volumes:
+  - ./db-volume:/data/db
+

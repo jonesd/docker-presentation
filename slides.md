@@ -13,7 +13,7 @@
 
 ## Docker: the product
 + Docker: Build, Ship, Run
-+ Docker is an open platform for building, shipping and running distributed applications. It gives programmers, development teams and operations engineers the common toolbox they need to take advantage of the distributed and networked nature of modern applications.
++ Docker is an open platform for building, shipping and running distributed applications. It gives programmers, development teams and operations engineers the common toolbox they need to take advantage of the distributed and networked nature of modern applications. (docker.com)
 
 &nbsp;
 
@@ -28,6 +28,10 @@
 + Isolation is based on features of the Linux kernel
 + You can think of the container as a kind of sandboxed process
 
+&nbsp;
+
++ Containers can also be considered as a light-weight Virtual Machine - with some caveats
+
 ---
 
 ## Why are containers interesting?
@@ -37,9 +41,11 @@
  + Process isolation allows low overhead separation between hosted applications
 + Container as a self-contained deployable component
  + More of an application/component level technology than virtual machine infrastructure
++ Container images are host agnostic and can be deployed anywhere
+ + Large body of ready-made containers to be used
 + Fits into a DevOps centric approach
- + Driven by configuration files that can be version controlled
- + Scriptable from command line togother with APIs allows it to fit into a delivery pipeline
+ + Specified by configuration files that can be version controlled
+ + Scriptable from command line together with APIs allows it to fit into a delivery pipeline
 
 ---
 
@@ -51,6 +57,17 @@
  + NodeJS + MongoDB + application node code
 + We could install nodejs and mongodb in the usual fashion (apt-get install node...)
 + Instead we will use docker
+
+---
+
+## Restful Application
+
++ Setup a Rest container that runs a server.js file using nodejs
++ Setup a DB container that runs MongoDB
++ Host and containers linked using network
++ Notice that there are two containers vs one virtual machine
+
+![Complete Application](images/overall.jpg)
 
 ---
 ## Create a node based restful application
@@ -96,8 +113,8 @@ var server = app.listen(80, function () {
 
 ## Run node application
 + Containers start isolated from the host so we will need to provide access to our code
-+ Run with the -v volume argument to map the host filesystem current directory to the container's /usr/src/app directory
-+ The -w argument sets the container's working directory to /usr/src/app
++ Run with the `-v` volume argument to map the host file system current directory to the container's /usr/src/app directory
++ The `-w` argument sets the container's working directory to /usr/src/app
 
 ---
 
@@ -118,7 +135,7 @@ express@4.13.3 node_modules/express
 npm info ok
 ```
 
-+ This will result in a node_modules directory present on the host filesystem as -v volume is bidirectional
++ This will result in a node_modules directory present on the host file system as `-v` volume is bidirectional
 
 ---
 
@@ -152,8 +169,17 @@ curl: (7) Failed to connect to localhost port 3000: Connection refused
 ## Providing access to the containers port
 
 + Containers are self-enclosed sandbox by default
-+ httpd process within the web container is listening on port 80
++ nodejs process within the rest container is listening on port 80
 + No access outside of the container to that port
+
+![Design](images/rest.jpg)
+
+---
+
+## Open rest port 80 to host
+
++ Restart the container using the -p option to make the container's port 80 accessible to the host at port 80
++ We could map between different port numbers on the container and the host, including random host port to overcome port conflicts
 
 ```
 $ docker run -it --rm --name rest \
@@ -199,7 +225,7 @@ COPY . /usr/src/app
 
 CMD [ "npm", "start" ]
 ```
-+ Notice how some of the docker run command line options we were using are now included in this file
++ Notice how some of the docker run command line options we were using are now represented in this file
 
 ---
 
@@ -213,14 +239,8 @@ $ docker build -t my-rest .
 
 Sending build context to Docker daemon 4.096 kB
 Step 0 : FROM node:4.1.2
-4.1.2: Pulling from library/node
-843e2bded498: Already exists
-...
 Step 1 : RUN mkdir -p /usr/src/app
-Step 2 : WORKDIR /usr/src/app
-Step 3 : COPY package.json /usr/src/app/
-Step 4 : RUN npm install
-Step 5 : COPY . /usr/src/app
+...
 Step 6 : CMD npm start
 Successfully built 8baaa541b2b5
 ```
@@ -233,7 +253,6 @@ $ docker images
 REPOSITORY                 TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
 my-rest                    latest              8baaa541b2b5        5 minutes ago       644.2 MB
 node                       4.1                 a3157e9edc18        6 days ago          641.2 MB
-node                       4.1.2               a3157e9edc18        6 days ago          641.2 MB
 ```
 
 ---
@@ -257,63 +276,54 @@ $ curl localhost/api/countries
 
 ## Storing data in MongoDB
 
-+ If we want
++ Currently the list of countries is hard coded into the javascript in the rest application
++ We would prefer to store the countries in a separate database, in this case mongodb
++ If we were using a Virtual Machine approach we would install mongo with nodejs in a single machine
++ With containers we decompose the system into one container per service, or process
 
 ---
 
+## Run the mongo database
+
++ We can use the official mongo image from docker hub
++ Mongo is run as a second container
+
+```
+$ docker run -it --rm --name db \
+    mongo:3
+
+Unable to find image 'mongo:3' locally
+3: Pulling from library/mongo
+MongoDB starting : pid=1 port=27017 dbpath=/data/db 64-bit host=dc3f52f88be4
+allocating new datafile /data/db/local.0, filling with zeroes...
+waiting for connections on port 27017
+```
++ Notice that the mongo daemon creates a blank database at `/data/db/local`
 
 ---
 
-## Rest API for our website
-+ Our website has now been extended to be AngularJS based that needs a Restful API on the server
-+ This API will be implemented in NodeJS so we will need an installation of node and npm and being running a node process
-+ If we were using a VirtualMachine we would package this up with httpd as a single unit
-+ Docker would aim to use a second node container linked to the httpd container
+## Rerun the same mongo database
 
-+ Create a minimal rest server
++ Lets stop and remove the existing db container and restart it
 
 ```
-user@helloreceipts-vm:~/projects/coe/docker/rest$ cat server.js
-var express = require('express');
-var app = express();
+got signal 2 (Interrupt), will terminate after current cmd ends
+dbexit:  rc: 0
 
-app.get('/api/countries', function (req, res) {
-  res.send('['ca', 'us']');
-});
+$ docker run -it --rm --name db \
+    mongo:3
 
-var server = app.listen(3000, function () {
-  var host = server.address().address;
-  var port = server.address().port;
-
-  console.log('Example app listening at http://%s:%s', host, port);
-});
+MongoDB starting : pid=1 port=27017 dbpath=/data/db 64-bit host=1166fde3cefb
+allocating new datafile /data/db/local.0, filling with zeroes...
+waiting for connections on port 27017
 ```
 
----
++ Notice that seems to be create a blank database at `/data/db/local` again...
 
-## Building the my-rest image
-+ Create Dockerfile that extends the public node image from docker hub
-```
-user@helloreceipts-vm:~/projects/coe/docker/rest$ cat Dockerfile
-FROM node:4.1-onbuild
-EXPOSE 3000
-```
+&nbsp;
 
-+ We can now build the my-rest image locally
-```
-$ docker build -t my-rest .
-Sending build context to Docker daemon 4.096 kB
-Step 0 : FROM node:4.1-onbuild
-4.1-onbuild: Pulling from library/node
-16b189cc8ce6: Pull complete
-...
-# Executing 3 build triggers
-Trigger 0, COPY package.json /usr/src/app/
-Step 0 : COPY package.json /usr/src/app/
-Trigger 1, RUN npm install
-Step 0 : RUN npm install
- ---> Running in ff83f6002ab0
-```
++ We just lost all the data in our database!
+
 ---
 
 ## Container file system is Ephemeral
@@ -329,45 +339,59 @@ Step 0 : RUN npm install
 
 ---
 
+## Storing mongo container data files on the host file system
 
++ We will again use the __-v__ argument to map the host file system directory to the container's /usr/src/app directory
+
+```
+$ mkdir db-volume
+$ docker run -it --rm --name db \
+    -v $PWD/db-volume:/data/db \
+    mongo:3
+
+    MongoDB starting : pid=1 port=27017 dbpath=/data/db 64-bit host=1166fde3cefb
+    allocating new datafile /data/db/local.0, filling with zeroes...
+    waiting for connections on port 27017
+```
+ + Looking at the host file system we see that the mongo datafiles are now present on the host fs
+
+```
+$ ls db-volume/
+journal  local.0  local.ns  mongod.lock  storage.bson
+```
 ---
 
-## Running the my-rest image
+## Linking the DB and Rest containers
 
-+ We can run the my-rest image as a rest container
-
-```
-$ docker run -it --rm --name rest -p 3000:3000 my-rest
-npm info it worked if it ends with ok
-npm info using npm@2.14.4
-npm info using node@v4.1.2
-npm info prestart my-rest@
-npm info start my-rest@
-
-> my-rest@ start /usr/src/app
-> node server.js
-
-Example app listening at http://:::3000
-```
-
-+ The my-rest container is now accessible from the host through port 3000
-```
-TODO curl 3000
-```
-+ How does the HTTP container make use of it?
-
----
-
-## Linking the Http and Rest containers
-
-+ We now need to link the HTTP and Rest containers
++ We now need to link the DB and Rest containers
 + As we saw before containers are isolated from the host and each other by default
-+ We have to link the http container to the rest container
++ Rather than linking the DB with the host, allowing any process access to the mongo service, we will instead link the Rest container to the DB container directly
++ The result isolates the mongo service to the rest container
 
 ```
-TODO run http with port link to rest
+$ docker run -it --rm --name rest \
+    -p 80:80 \
+    --link db:db \
+    my-rest
 ```
 
+
+
+---
+
+## Accessing the mongo service from the Rest container
+
++ The rest container now can the mongo service through the `db` domain name
+ + Docker rewrites the `/etc/hosts` file to make it easier to reference linked containers
+
+```javascript
+var MongoClient = require('mongodb').MongoClient;
+var url = 'mongodb://db:27017/countries';
+MongoClient.connect(url, function(err, db) {
+  ...
+}
+```
++ Rather than relying directly on the `db` domain name from the --link the full URL can be passed into the container as an environment variable
 ---
 
 ## Orchestration
@@ -389,27 +413,38 @@ TODO run http with port link to rest
 
 + docker-compose.yml file that specifies the runtime containers
 + All containers defined a single file
-+ Translates __docker run__ arguments into configuration file
++ Translates __docker run__ arguments into a single configuration file
 
 ```
 $ vi docker-compose.yml
-TODO
-```
+rest:
+  build: .
+  links:
+  - db
+  ports:
+  - "80:80"
 
+db:
+  image: mongo:3
+  volumes:
+  - ./db-volume:/data/db
+```
++ Notice how arguments of the rest and db run commands are represented here
 ---
 
-## Docker Example Summary
+## docker-compose up
 
-+ Docker Images are run to produce runtime Containers
-+ Images can be private or downloaded from the public docker hub
-+ Container runs one process
-+ Containers are isolated by default
-+ Container network access from host or other containers can be configured
-+ Container disk storage is ephemeral and is lost when the container is removed
-+ Host file system can be linked to container for permanent storage
-+ Application decomposed into many containers
-+ Docker compose can run and link multiple containers
++ The rest and db containers can now be started with a single command
 
+```
+$ docker-compose up
+Creating rest_db_1...
+Creating rest_rest_1...
+db_1   | MongoDB starting : pid=1 port=27017 dbpath=/data/db 64-bit host=f80942718a9f
+db_1   | waiting for connections on port 27017
+rest_1 | > node server.js
+rest_1 | Example app listening at http://:::80
+```
 ---
 
 ## Extending the host
@@ -463,6 +498,20 @@ TODO
 + Docker containers can be used well to handle third party services, such as databases or HTTPD fronts where volume sharing is all that is needed
 ---
 
+## Docker Concepts Summary
+
++ Docker Images are run to produce runtime Containers
++ Images can be private or downloaded from the public docker hub
++ Container runs one process
++ Containers are isolated by default
++ Container network access from host or other containers can be configured
++ Container disk storage is ephemeral and is lost when the container is removed
++ Host file system can be linked to container for permanent storage
++ Application decomposed into many containers
++ Docker compose can run and link multiple containers
+
+---
+
 ## Docker/Containers Pros and Cons
 
 + Pros
@@ -477,18 +526,12 @@ TODO
  + Had more problems using CentOS as the host OS rather than Ubuntu
 
 ---
-## Should you use Docker?
-
-+ Choices
- + Deploying to hosts as before vs. Virtual Machine images vs. Docker containers
-
----
 
 # Questions?
 
 &nbsp;
 
-+ TODO links
++ http://docker.com
 ---
 
 ## Why/Motivation
