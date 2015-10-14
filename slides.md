@@ -599,21 +599,6 @@ rest_1 | Example app listening at http://:::80
 
 ---
 
-## Docker Concepts Summary
-
-+ Docker Images are run to produce runtime Containers
-+ Images can be private or downloaded from the public docker hub
-+ Images defined by Dockerfile
-+ Container runs one process
-+ Containers are isolated by default
-+ Container network access from host or other containers can be configured
-+ Container disk storage is ephemeral and is lost when the container is removed
-+ Host file system can be linked to container for permanent storage
-+ Application decomposed into many containers
-+ Docker compose can run and link multiple containers (docker-compose.yml)
-
----
-
 ## Docker/Containers: Pros
 
 + Pros
@@ -657,6 +642,21 @@ rest_1 | Example app listening at http://:::80
 + FS
  + 1 project using Vagrant on developer machines for runtime environment
  + Customers adopting Docker and exploring CloudFoundry
+
+---
+
+## Docker Concepts Summary
+
++ Docker Images are run to produce runtime Containers
++ Images can be private or downloaded from the public docker hub
++ Images defined by Dockerfile
++ Container runs one process
++ Containers are isolated by default
++ Container network access from host or other containers can be configured
++ Container disk storage is ephemeral and is lost when the container is removed
++ Host file system can be linked to container for permanent storage
++ Application decomposed into many containers
++ Docker compose can run and link multiple containers (docker-compose.yml)
 
 ---
 
