@@ -63,6 +63,11 @@
 ![Complete Application](images/overall.jpg)
 
 ---
+
+## Create the Rest container
+
+---
+
 ## Create a node based restful application
 + The docker hub website contains hundreds of official repositories and 100,000+ user contributed repositories
 + Download the 'node' version 4.1 docker image from docker hub and run as a container named 'rest'
@@ -194,22 +199,19 @@ $ curl localhost/api/countries
 
 ---
 
-## Improving the definition of the rest container
+## Rest container as deployable unit
 
 ---
 
 ## Building the rest image
 + Currently the rest container is defined by:
- + node image
+ + node standard image
  + javascript and package.json from the host filesystem
  + docker run command line
++ All these parts make it difficult to deploy to another host
+
 + Building a new image that extends the node image with the javascript and package.json
 + This image could be run on any docker installation
-+ Content of an image is defined in the Dockerfile
- + Limited number of Dockerfile commands
- + FROM command image to extend another image, typically terminating in a linux OS, which can differ from host OS
- + RUN allows shell commands, for example OS's package manager such as (apt-get install ...)
- + CMD set the default command when container is run
 
 ---
 
@@ -228,6 +230,49 @@ COPY . /usr/src/app
 CMD [ "npm", "start" ]
 ```
 + Notice how some of the docker run command line options we were using are now represented in this file
+
+---
+
+## Dockerfile format
+
++ Content of an image is defined in the Dockerfile
++ Limited number of Dockerfile commands
+ + FROM command image to extend another image, typically terminating in a linux OS, which can differ from host OS
+ + RUN allows shell commands, for example OS's package manager such as (apt-get install ...)
+ + CMD set the default command when container is run
++ Plus a few more commands - often related to the docker command line arguments
+
+---
+
++ Dockerfile for the parent `node:4.1.2` image
+
+```
+FROM buildpack-deps:jessie
+
+RUN set -ex \
+  && for key in \
+    9554F04D7259F04124DE6B476D5A82AC7E37093B \
+    94AE36675C464D64BAFA68DD7434390BDBE9B9C5 \
+    0034A06D9D9B0064CE8ADF6BF1747F4AD2306D93 \
+    FD3A5288F042B6850C66B31F09FE44734EB7990E \
+    71DCFD284A79C3B38668286BC97EC7A07EDE3FC1 \
+    DD8F2338BAE7501E3DD5AC78C273792F7D83545D \
+  ; do \
+    gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$key"; \
+  done
+
+ENV NPM_CONFIG_LOGLEVEL info
+ENV NODE_VERSION 4.1.2
+
+RUN curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.gz" \
+  && curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/SHASUMS256.txt.asc" \
+  && gpg --verify SHASUMS256.txt.asc \
+  && grep " node-v$NODE_VERSION-linux-x64.tar.gz\$" SHASUMS256.txt.asc | sha256sum -c - \
+  && tar -xzf "node-v$NODE_VERSION-linux-x64.tar.gz" -C /usr/local --strip-components=1 \
+  && rm "node-v$NODE_VERSION-linux-x64.tar.gz" SHASUMS256.txt.asc
+
+CMD [ "node" ]
+```
 
 ---
 
@@ -402,6 +447,13 @@ var url = 'mongodb://db:27017/countries';
 MongoClient.connect(url, function(err, db) {
   ...
 }
+
+app.get('/api/countries', function (req, res) {
+  getAllCountries(MongoClient, function(err, countries) {
+    res.send(countries);  
+  });
+});
+
 ```
 + Rather than relying directly on the `db` domain name from the --link the full URL can be passed into the container as an environment variable
 ---
@@ -476,7 +528,7 @@ rest_1 | Example app listening at http://:::80
 + So far we have decomposed our runtime environment into multiple containers, then reassembled using orchestration
 + Why not just stick to a single virtual machine?
 + Container isolation and the docker API opens the door for more options on the host
-+ Multiple applicationszversions on the same host to improve hardware utilization
++ Multiple applications/versions on the same host to improve hardware utilization
  + Front the machine with an HTTP proxy to direct network traffic to appropriate containers (jwilder/nginx-proxy)
 + Provide shared services across all containers running on the host using docker API
  + Collect logs and ship them to a central logging repository (digitalwonderland/logstash-forwarder)
@@ -518,23 +570,7 @@ rest_1 | Example app listening at http://:::80
 
 ---
 
-## Docker/Containers Pros and Cons
-
-+ Pros
- + Wrapping deployment artefacts with the entire runtime environment and configuration
- + Runtime configuration under version control rather than ad-hoc host environments
- + Docker image is becoming the standard for individual container images
-
----
-
-## Docker/Containers Pros and Cons
-
-+ Cons
- + Lots of alternatives for orchestration of docker containers - docker-compose still under development
- + Existing applications need to be updated - mostly around passing in URL to access services in other containers
- + Conceptual complexity of introducing a new container layer
- + Docker is still young software and releases can break existing functionality
- + Had more problems using CentOS as the host OS rather than Ubuntu
+# Wrapping up
 
 ---
 
@@ -553,35 +589,112 @@ rest_1 | Example app listening at http://:::80
 
 ---
 
+## Docker/Containers: Pros
+
++ Pros
+ + Wrapping deployment artefacts with the entire runtime environment and configuration
+ + Runtime configuration under version control rather than ad-hoc host environments
+ + Fits well into internet architectures such as micro-services
+ + Docker image is becoming the standard for individual container images
+ + Lots of content and help online
+ + Large number of off-the shelf containers ready to be used
+ + Docker API allows for extensions and third-parties
+ + Busy fleshing out their orchestration/multiple machine support
+ + Commercial support for customers
+
+---
+
+## Docker/Containers: Cons
+
++ Cons
+ + Lots of alternatives for orchestration of docker containers - docker-compose still under development
+ + Existing applications need to be updated - mostly around passing in URL to access services in other containers
+ + Jenkins support for docker containers is not complete
+ + More opinionated about architecture than VM based approach
+ + Increase in conceptual complexity by introducing new abstraction/layer
+ + Docker is still young software and releases can break existing functionality
+ + Had more problems using CentOS as the host OS rather than Ubuntu
+
+---
+
+## Intelliware experience
+
++ ICT
+ + 3 projects using Docker for Jenkins builds, delivery pipeline to staging and QA
+  + Jenkins builds artefacts within Docker containers
+  + Use local docker registry to access built images - similar to maven
+  + Sharing hosts between multiple applications
+ + HelloReceipts production runs on container based Heroku PaaS
++ e-Health
+ + 1 project using Docker images for QA and production preview
+  + Delivery pipeline by copying built images using docker save/load between machines
++ FS
+ + 1 project using Vagrant on developer machines for runtime environment
+ + Customers adopting Docker and exploring CloudFoundry
+
+---
+
 # Questions?
 
 &nbsp;
 
 + http://docker.com
++ http://12factor.net/
++ https://github.com/jonesd/docker-presentation
 ---
 
----
-
-## Content
-+ Docker Introduction
-+ Docker Example
-+ Orchestration
+## Appendices
 
 ---
 
+## Host Processes
 
-## Why/Motivation
++ How are the running containers from the example represented from the host's perspective?
++ The single command process from containers are visible:
+ + DB container == mongod executable
+ + Rest container == npm executable
++ Docker's docker-proxy implementation for proxying from the host's port 80
+
+```
+$ ps auxf
+
+root     /usr/bin/docker daemon -H fd://
+999      \_ mongod
+root     \_ npm                                         
+root     |   \_ sh -c node server.js
+root     |       \_ node server.js
+root     \_ docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 80 -container-ip 172.17.0.40 -container-port 80
+
+```
+
+---
+
+## Image file size
+
++ It is easy to end up with images that are hundreds of MBs in size
++ Starting from tiny OS/libraries such as busybox can result in much smaller images
++ Images are composed of layers, one per Dockerfile command, and these can be shared
++ https://imagelayers.io/
+
+```
+$ docker images
+
+REPOSITORY  TAG                 IMAGE ID            VIRTUAL SIZE
+my-rest     latest              8baaa541b2b5        644.2 MB
+mongo       3                   5e53867deb23        261.3 MB
+node        4.1.2               a3157e9edc18        641.2 MB
+node        4.1                 a3157e9edc18        641.2 MB
+mongo       2.6                 1dbbf952200b        392.3 MB
+maven       3-jdk-8-onbuild     403227dcca40        827 MB
+node        0.10                53a86cbfc348        633.4 MB
+```
+
+---
+
+## Motivation
 + Expectations for deployed systems have changed - trickle down from large websites
 + The move from Java centric server apps to polyglot distributed systems + pressure to deliver more frequently (finally) + API/Messaging centric architectures +  + DevOps = Complex systems + opportunity for influencing delivered environment
 + Screenshots (perhaps demo)
  + With only docker installed download/startup multiple container in one command
  + Deploy same thing on external machines
  + See centralized logging
-
----
-
-## Containers History
-+ Data centre - better utilization
-+ Kernel changes - security
-+ Heroku/PaaS
-+ Docker
