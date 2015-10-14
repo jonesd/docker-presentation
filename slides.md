@@ -23,7 +23,7 @@
 
 &nbsp;
 
-+ Containers can also be considered as a light-weight Virtual Machine - with some caveats
++ Containers seem like light-weight Virtual Machines - in practice they are quite different
 
 ---
 
@@ -38,23 +38,28 @@
  + Large body of ready-made containers to be used
 + Fits into a DevOps centric approach
  + Specified by configuration files that can be version controlled
- + Scriptable from command line together with APIs allows it to fit into a delivery pipeline
+ + APIs and command line access allows containers to fit into delivery pipelines and scripted solutions
+
+---
+
+## Docker Example Application
 
 ---
 
 ## Docker Example
 
-+ Build and run a simple Restful NodeJS application using mongodb
++ Build and run a simple Restful NodeJS application to provide a list of countries using mongodb
 
 + Given a clean Linux machine how could we implement a node application?
  + NodeJS + MongoDB + application node code
-+ We could install nodejs and mongodb in the usual fashion (apt-get install node...)
++ We could install nodejs and mongodb in the usual fashion (apt-get install node...) + scripts to copy application code and run node
 + Instead we will use docker
 
 ---
 
 ## Restful Application
 
++ Linux based host with only docker installed on it
 + Setup a Rest container that runs a server.js file using nodejs
 + Setup a DB container that runs MongoDB
 + Host and containers linked using network
@@ -68,7 +73,7 @@
 
 ---
 
-## Create a node based restful application
+## Start node container
 + The docker hub website contains hundreds of official repositories and 100,000+ user contributed repositories
 + Download the 'node' version 4.1 docker image from docker hub and run as a container named 'rest'
 
@@ -82,13 +87,14 @@ Unable to find image 'node:4.1' locally
 ...
 Status: Downloaded newer image for node:4.1
 ```
-+ Download succeeded but then the docker container immediately Exited
++ Download succeeded but then the rest container immediately Exited
 + No node code to run!
 
 ---
 
-## Create a basic node application
-+ Create the standard node application using express js
+## Simple node/expressjs application
++ Create a simple `server.js` node application using expressjs
++ /api/countries returns a static list of countries
 + Notice that there are no docker specific changes
 
 ```
@@ -109,15 +115,18 @@ var server = app.listen(80, function () {
 
 ---
 
-## Run node application
-+ Containers start isolated from the host so we will need to provide access to our code
-+ Run with the `-v` volume argument to map the host file system current directory to the container's /usr/src/app directory
-+ The `-w` argument sets the container's working directory to /usr/src/app
+## Share code with rest container
++ Containers start isolated from the host so we will need to provide access to our server.js code
++ Use the following docker run arguments
+ + `-v` volume argument to map the host file system current directory to the container's /usr/src/app directory
+ + `-w` argument sets the container's working directory to /usr/src/app
 
 ---
 
 ## Install npm dependencies
 + First we will install the expressjs and its dependencies
++ Start a new container to execute 'npm install'
+ + Container starts without delay as image/executable already downloaded to host
 
 ```
 $ docker run -it --rm --name rest \
@@ -125,7 +134,6 @@ $ docker run -it --rm --name rest \
     node:4.1 \
     npm install
 
-npm info it worked if it ends with ok
 npm info using npm@2.14.4
 npm info using node@v4.1.2
 ...
@@ -137,17 +145,14 @@ npm info ok
 
 ---
 
-## Start server
-+ To run the application
+## Run application
++ Start a new container to execute 'npm start'
 
 ```
 $ docker run -it --rm --name rest \
     -v $PWD:/usr/src/myapp -w /usr/src/myapp \
     node:4.1 \
     npm start
-
-npm info it worked if it ends with ok
-....
 
 > rest@1.0.0 start /usr/src/myapp
 > node server.js
@@ -159,25 +164,25 @@ Example app listening at http://:::80
 
 ```
 $ curl localhost/api/countries
-curl: (7) Failed to connect to localhost port 3000: Connection refused
+curl: (7) Failed to connect to localhost port 80: Connection refused
 ```
 
 ---
 
-## Providing access to the containers port
+## Inaccessible port 80
 
-+ Containers are self-enclosed sandbox by default
-+ nodejs process within the rest container is listening on port 80
++ Containers are isolated from the host and other containers by default
++ node process within the rest container is listening on port 80
 + No access outside of the container to that port
 
 ![Design](images/rest-unconnected.jpg)
 
 ---
 
-## Open rest port 80 to host
+## Open port 80 to host
 
 + Restart the container using the -p option to make the container's port 80 accessible to the host at port 80
-+ We could map between different port numbers on the container and the host, including random host port to overcome port conflicts
+ + We could map between different port numbers on the container and the host, including random host port to overcome port conflicts
 
 ```
 $ docker run -it --rm --name rest \
@@ -191,9 +196,10 @@ Example app listening at http://:::80
 $ curl localhost/api/countries
 ["ca","us"]
 ```
+
++ Success!
 ---
 
-## Rest accessible from host
 
 ![Complete Application](images/rest.jpg)
 
@@ -203,14 +209,14 @@ $ curl localhost/api/countries
 
 ---
 
-## Building the rest image
+## Building a custom rest image
 + Currently the rest container is defined by:
  + node standard image
- + javascript and package.json from the host filesystem
- + docker run command line
-+ All these parts make it difficult to deploy to another host
+ + server.js and package.json from the host filesystem
+ + docker run command line arguments
++ So many parts make it difficult to deploy to another host
 
-+ Building a new image that extends the node image with the javascript and package.json
++ We can build a new image that packages server.js and package.json with node as a single component
 + This image could be run on any docker installation
 
 ---
@@ -229,17 +235,18 @@ COPY . /usr/src/app
 
 CMD [ "npm", "start" ]
 ```
-+ Notice how some of the docker run command line options we were using are now represented in this file
++ Notice how some of the docker run command line options are represented in this file
 
 ---
 
 ## Dockerfile format
 
-+ Content of an image is defined in the Dockerfile
++ Content of an image is defined by the Dockerfile
++ Sequence of command are run within a build container resulting in an image
 + Limited number of Dockerfile commands
- + FROM command image to extend another image, typically terminating in a linux OS, which can differ from host OS
- + RUN allows shell commands, for example OS's package manager such as (apt-get install ...)
- + CMD set the default command when container is run
+ + FROM image to extend another image, typically terminating in a base Linux OS
+ + RUN command line executables within the container, for example the base OS's package manager such as (apt-get install ...)
+ + CMD set the default command when the built image is later run as a container
 + Plus a few more commands - often related to the docker command line arguments
 
 ---
@@ -279,7 +286,7 @@ CMD [ "node" ]
 ## Building the rest image
 
 + Most public images are created automatically from a github repository
-+ We can create our own image manually using the __docker build__ command
++ Manually build the my-rest image using the Dockerfile
 
 ```
 $ docker build -t my-rest .
@@ -297,16 +304,17 @@ Successfully built 8baaa541b2b5
 ```
 $ docker images
 
-REPOSITORY                 TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
-my-rest                    latest              8baaa541b2b5        5 minutes ago       644.2 MB
-node                       4.1                 a3157e9edc18        6 days ago          641.2 MB
+REPOSITORY  TAG     IMAGE ID      CREATED        VIRTUAL SIZE
+my-rest     latest  8baaa541b2b5  5 minutes ago  644.2 MB
+node        4.1     a3157e9edc18  6 days ago     641.2 MB
 ```
 
 ---
 
 ## Run the my-rest image
 
-+ Running the new my-rest image is more direct
++ Run the my-rest image in a similar way to the public node image
++ No longer have to use the -v volume and -w arguments to provide access to the javascript
 
 ```
 $ docker run -it --rm --name rest \
@@ -319,9 +327,12 @@ $ curl localhost/api/countries
 ["ca","us"]
 ```
 
++ Much better
 ---
 
-## Creating the DB container
+## Create the DB container
+
+---
 
 ![Complete Application](images/db-start.jpg)
 
@@ -336,7 +347,7 @@ $ curl localhost/api/countries
 
 ---
 
-## Run the mongo database
+## Start mongo container
 
 + We can use the official mongo image from docker hub
 + Mongo is run as a second container
@@ -355,7 +366,7 @@ waiting for connections on port 27017
 
 ---
 
-## Rerun the same mongo database
+## Rerun the mongo container
 
 + Lets stop and remove the existing db container and restart it
 
@@ -371,7 +382,7 @@ allocating new datafile /data/db/local.0, filling with zeroes...
 waiting for connections on port 27017
 ```
 
-+ Notice that seems to be create a blank database at `/data/db/local` again...
++ Notice that the mongo daemon creates a blank database at `/data/db/local` again...
 
 &nbsp;
 
@@ -384,11 +395,12 @@ waiting for connections on port 27017
 + By default the file system of a docker container is initialized with the contents of the image
  + except for a few system host files
 + File system within the container is writeable
-+ Any changes made within the running container will be preserved only until the container removed
++ Any changes made within the running container will be preserved only until when the container is removed
 + Container will be recreated from the image again
-+ All modified data that needs to be persisted should be through a volume to the host file system
++ The result as that all modified data that needs to be persisted should be accessed through a volume on the host file system
 + Advantage
  + Each container starts with the same file system content
+ + Supports version controlled configuration by reducing the value of humans modifying a running container by executing ad-hoc commands  
 
 ---
 
@@ -406,7 +418,7 @@ $ docker run -it --rm --name db \
     allocating new datafile /data/db/local.0, filling with zeroes...
     waiting for connections on port 27017
 ```
- + Looking at the host file system we see that the mongo datafiles are now present on the host fs
+ + Looking at the host file system we see that the mongo datafiles are now present on the host filesystem
 
 ```
 $ ls db-volume/
@@ -415,6 +427,8 @@ journal  local.0  local.ns  mongod.lock  storage.bson
 ---
 
 ## Linking the DB and Rest containers
+
++ The DB container is now functional but inaccessible to the rest container
 
 ![Complete Application](images/db-unconnected.jpg)
 
@@ -438,8 +452,8 @@ $ docker run -it --rm --name rest \
 
 ## Accessing the mongo service from the Rest container
 
-+ The rest container now can the mongo service through the `db` domain name
- + Docker rewrites the `/etc/hosts` file to make it easier to reference linked containers
++ The rest container can now resolve the mongo service through the `db` domain name
+ + Docker rewrites the rest container's `/etc/hosts` file to make it easier to reference linked containers
 
 ```javascript
 var MongoClient = require('mongodb').MongoClient;
@@ -458,10 +472,9 @@ app.get('/api/countries', function (req, res) {
 + Rather than relying directly on the `db` domain name from the --link the full URL can be passed into the container as an environment variable
 ---
 
-## Example Functioning
+## Example
 
-+ We now have the rest container accessible
-+ The rest container using the db container
++ The application is now functional with the rest container using data from the db container
 
 ![Complete Application](images/overall.jpg)
 
@@ -469,24 +482,28 @@ app.get('/api/countries', function (req, res) {
 
 ## Orchestration
 
+---
+
+## docker-compose
+
 + Applications will typically be decomposed into more than one container
 + It is also common to have many instances of the same image running
  + Performance - spreading load across many containers
  + Availability - containers in different physical locations
 + How can this be accomplished?
- + Custom scripting that runs commands similar to we have already seen
+ + Custom scripting that runs commands similar to the example so far
  + Additional tool and configuration that specifies the runtime ensemble
 
-+ Docker provides a tool __docker-compose__ as the starting point for this  
-+ There are many alternatives by third parties
++ Docker provides the __docker-compose__ tool as the starting point for this  
++ There are many alternatives by third parties that build upon docker
 
 ---
 
-## docker-compose
+## docker-compose.yml
 
 + docker-compose.yml file that specifies the runtime containers
-+ All containers defined a single file
-+ Translates __docker run__ arguments into a single configuration file
++ All containers defined in a single file
++ Translates __docker run__ arguments into yml elements
 
 ```
 $ vi docker-compose.yml
@@ -521,6 +538,11 @@ rest_1 | Example app listening at http://:::80
 ```
 
 + docker-compose now allows us to start/stop/restart/access logs for all the containers as if they were a single unit
++ containers can also be configured with the restart element to restart on application failures and host machine startup
+---
+
+## Docker in practice
+
 ---
 
 ## Extending the host
@@ -542,10 +564,10 @@ rest_1 | Example app listening at http://:::80
 
 ## Platform as a Service
 
-+ Extension of this is the idea of Platform as a Service PaaS
++ Extension of the host leads to Platform as a Service PaaS
 + Development team focus on applications with a standard set of tooling and hosting built around it
-+ Example PaaS implementations: Heroku, Amazon AWS, CloudFoundry, and others
-+ 12 Factor App provides guidance on engineering applications for this space
++ Example PaaS implementations: Heroku, AWS Elastic Beanstalk, CloudFoundry, and others
++ "12 Factor App" provides guidance on designing applications for deploying to this space
 
 ---
 
@@ -553,12 +575,11 @@ rest_1 | Example app listening at http://:::80
 
 + Docker runtime requires a modern linux kernel for the host
 + Compatible with most Linux implementations
- + I've found Ubuntu the best experience, we have also had success with CentOS after a few issues
 + Windows and MacOS hosts are supported by starting up a compatible Linux host within a Virtual Machine using Docker Machine
  + Microsoft is working on Windows Server Containers support for Windows Server 2016
 + There are also a number of cloud based hosting providers now for Docker containers
  + Amazon EC2 Container Service, Microsoft Azure, Google Container Engine, etc
- + Cloud providers currently provide the orchestration for multiple containers rather than use docker-compose
+ + Cloud providers typical implement their own orchestration tooling for multiple containers rather than use docker-compose
 
 ---
 ## Docker on the developer machine
@@ -574,7 +595,7 @@ rest_1 | Example app listening at http://:::80
 
 ---
 
-# Wrapping up
+## Wrapping up
 
 ---
 
@@ -598,12 +619,13 @@ rest_1 | Example app listening at http://:::80
 + Pros
  + Wrapping deployment artefacts with the entire runtime environment and configuration
  + Runtime configuration under version control rather than ad-hoc host environments
- + Fits well into internet architectures such as micro-services
+ + Fits well with internet architectures such as micro-services
+ + Supports polyglot implementations
  + Docker image is becoming the standard for individual container images
- + Lots of content and help online
+ + Lots of content and help available online
  + Large number of off-the shelf containers ready to be used
- + Docker API allows for extensions and third-parties
- + Busy fleshing out their orchestration/multiple machine support
+ + Docker API allows for automation and third-party extensions
+ + Orchestration/multiple machine support is improving
  + Commercial support for customers
 
 ---
@@ -617,7 +639,7 @@ rest_1 | Example app listening at http://:::80
  + More opinionated about architecture than VM based approach
  + Increase in conceptual complexity by introducing new abstraction/layer
  + Docker is still young software and releases can break existing functionality
- + Had more problems using CentOS as the host OS rather than Ubuntu
+ + Found Ubuntu host had fewer setup issues than CentOS hosts
 
 ---
 
@@ -654,10 +676,6 @@ rest_1 | Example app listening at http://:::80
 ## Host Processes
 
 + How are the running containers from the example represented from the host's perspective?
-+ The single command process from containers are visible:
- + DB container == mongod executable
- + Rest container == npm executable
-+ Docker's docker-proxy implementation for proxying from the host's port 80
 
 ```
 $ ps auxf
@@ -668,8 +686,14 @@ root     \_ npm
 root     |   \_ sh -c node server.js
 root     |       \_ node server.js
 root     \_ docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 80 -container-ip 172.17.0.40 -container-port 80
-
 ```
+
++ The single command process from containers are visible:
+ + DB container == mongod executable
+ + Rest container == npm executable
++ Docker's docker-proxy implementation for proxying from the host's port 80
+
+
 
 ---
 
@@ -677,7 +701,7 @@ root     \_ docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 80 -container-ip
 
 + It is easy to end up with images that are hundreds of MBs in size
 + Starting from tiny OS/libraries such as busybox can result in much smaller images
-+ Images are composed of layers, one per Dockerfile command, and these can be shared
++ Images are composed of layers, one per Dockerfile command, and may be shared to reduce actual consumed disk space
 + https://imagelayers.io/
 
 ```
