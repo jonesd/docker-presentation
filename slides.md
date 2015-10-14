@@ -536,6 +536,10 @@ rest_1 | Example app listening at http://:::80
 
 ---
 
+![Host](images/docker-host.jpg)
+
+---
+
 ## Platform as a Service
 
 + Extension of this is the idea of Platform as a Service PaaS
